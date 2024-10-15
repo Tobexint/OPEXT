@@ -18,7 +18,7 @@ function getTabInfo() {
         id: tab.id,
         url: tab.url,
         title: tab.title,
-        // You can add memory usage simulation here or in Flask.
+        lastAccessed: tab.lastAccessed, // Assuming this is available
         memory_usage: Math.random() * 200 * 1024 * 1024  // Simulated memory usage
       }));
       resolve(tabData);
@@ -28,7 +28,6 @@ function getTabInfo() {
 
 function sendTabsToFlask() {
   getTabInfo().then(tabs => {
-    console.log("Sending tabs to Flask:", tabs);  // Log the tabs you're sending
     fetch('http://localhost:5000/process-tabs', {
       method: 'POST',
       headers: {
@@ -38,15 +37,28 @@ function sendTabsToFlask() {
     })
     .then(response => response.json())
     .then(data => {
-      console.log('Tab Suggestions from Flask:', data);  // Log the Flask response
+      console.log('Tab Suggestions:', data.suggestions);
+      console.log('Tabs to close:', data.tabs_to_close); // Log the tabs to close
+
+      // Get the list of tab IDs to close
+      const tabsToClose = data.tabs_to_close;
+
+      // Close inactive tabs
+      if (tabsToClose && tabsToClose.length > 0) {
+        tabsToClose.forEach(tabId => {
+          chrome.tabs.remove(tabId, function() {
+            console.log(`Tab with ID ${tabId} closed.`);
+          });
+        });
+      }
     })
-    .catch(error => console.error('Error:', error));  // Log any error
+    .catch(error => console.error('Error:', error));
   });
 }
 
-
 // Trigger when user clicks on the extension
 chrome.action.onClicked.addListener(() => {
+  console.log("Extension icon clicked");
   sendTabsToFlask();
 });
 
@@ -57,31 +69,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-const MAX_TABS = 10;  // Set your maximum allowed open tabs
-
-function manageTabs() {
-    chrome.tabs.query({}, function(tabs) {
-        console.log(`Currently open tabs: ${tabs.length}`);
-
-        if (tabs.length > MAX_TABS) {
-            // Sort tabs by lastAccessed to close the least recently used ones
-            tabs.sort((a, b) => a.lastAccessed - b.lastAccessed);
-
-            // Calculate how many tabs to close
-            const tabsToClose = tabs.length - MAX_TABS;
-
-            console.log(`Closing ${tabsToClose} excess tabs...`);
-            for (let i = 0; i < tabsToClose; i++) {
-                const tabToClose = tabs[i];
-                chrome.tabs.remove(tabToClose.id, () => {
-                    console.log(`Closed tab: ${tabToClose.title}`);
-                });
-            }
-        }
-    });
-}
-
-// Trigger when user clicks on the extension
-chrome.action.onClicked.addListener(() => {
-    manageTabs();  // Check and manage tabs when the extension is clicked
-});

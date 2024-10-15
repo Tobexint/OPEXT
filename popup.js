@@ -13,5 +13,5 @@ document.getElementById('search-tabs').addEventListener('input', function() {
 });
 
 document.getElementById('searchBtn').addEventListener('click', function() {
-    chrome.runtime.sendMessage({action: "searchTabs"});
+    chrome.runtime.sendMessage({ action: "searchTabs" });
 });
